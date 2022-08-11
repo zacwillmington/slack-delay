@@ -13,12 +13,34 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(port, hostname, () => {
-    axios.get('https://slack.com/api/conversations.list', {
+    const currentDMs = {}
+    // Check the current slack direct messages for new direct messages
+    // Need to find a way to get the status of a direct message history
+    axios.get('https://slack.com/api/conversations.list?types=im', {
         headers: {
-            Authorization: `Bearer ${process.env.AUTH_TOKEN}`,
+            Authorization: `Bearer ${process.env.USER_AUTH_TOKEN}`,
             'Content-type': 'application/json'
         }
     }).then(res => {
-        console.log('fetched data', res)
+        console.log(res.data)
+        for (const channel of res.data.channels) {
+            if (channel.is_im) {
+                currentDMs[channel.id] = channel 
+            }
+        }
+        //console.log(currentDMs)
     })
+
+    // channel id = D02774FFU6P
+     axios.get('https://slack.com/api/conversations.replies?channel=D03TC8YDGN8', {
+        headers: {
+            Authorization: `Bearer ${process.env.USER_AUTH_TOKEN}`,
+            'Content-type': 'application/json'
+        }
+    }).then(res => {
+        console.log('fetched data', res.data.response_metadata.messages)
+    })
+    
+
+    // Then, for each message, call conversations.replies and check the res.messages.unread_count
 });

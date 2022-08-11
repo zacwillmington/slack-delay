@@ -33,7 +33,14 @@ server.listen(port, hostname, async () => {
         }
     }
 
-    console.log(currentDMs)
+
+    /*
+        *
+        *
+        * converstionLastRead = {
+        *   channelId: tsId
+        *}
+        * */
      // For each message, get the ts and add the the currentDMs
     const channel = 'D02774FFU6P'
 
@@ -46,7 +53,11 @@ server.listen(port, hostname, async () => {
         }
     })
        const mostRecentMessage = currentDMs[channel]['ts'] = conversationsHistoriesRes.data.messages[0];
-    console.log(currentDMs[channel])
+        if (!(lastRead in converstaionLastRead)) {
+            // Make alert saying that new message.
+            // if the message is unread
+
+        }
 
     return
      const conversationsrepssRes = await axios({

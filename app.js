@@ -11,7 +11,6 @@ const importantUsers = [ 'U03THNFKX36' ]
 const server = http.createServer((req, res) => {
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/plain');
-  res.end('Hola Mundo');
 });
 
 const MAX_POLLS = 250
@@ -57,6 +56,7 @@ const poll = async (errorHandler, interval, timeout) => {
             const newCall = await delayPromise(interval);
             run()
         } else if (timeout !== 0 && Date.now() - start > timeout) {
+            console.log('Call to slack timedout')
             player.play('./media/error.m4r', (err) => {
                 if (err) console.log(`Could not play sound: ${err}`);
             });
@@ -64,8 +64,6 @@ const poll = async (errorHandler, interval, timeout) => {
            throw new Error('Call to Slack timedout') 
         } else {
             unreadWaitTime = 0
-            // repoll
-            console.log('No new messages')
             const newCall = await delayPromise(interval);
             run()
         }

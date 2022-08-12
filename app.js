@@ -14,7 +14,7 @@ const server = http.createServer((req, res) => {
 
 const retries = 288
 
-const channel = 'D03T0MFNWDV'
+//const channel = 'D03T0MFNWDV'
 const getLastRead = async (channel) => {
      const conversationsHistoriesForChannel = await axios({
             url: `https://slack.com/api/conversations.history?channel=${channel}`,
@@ -29,7 +29,6 @@ const getLastRead = async (channel) => {
 }
 
 const poll = async (errorHandler, interval, timeout) => {
-    const conversations = await getAllConversations();
 
     player.play('./media/alert.m4r', (err) => {
         if (err) console.log(`Could not play sound: ${err}`);
@@ -37,15 +36,19 @@ const poll = async (errorHandler, interval, timeout) => {
     let unreadWaitTime = 0
     const run = async () => {
         console.log('Polling...')
+
         let start = Date.now();
-
-        const isUnread = await unreadMessages(channel)
+        let hasUnread = false
+        const conversations = await getAllConversations();
+        for (const channel in conversations) {
+            hasUnread = await unreadMessages(channel) ? true : false
+        }
+        
     
-        console.log(`Fetched conversation history for channel: ${channel}`)
-        console.log('History from last read', conversations[channel])
+//        console.log(`Fetched conversation history for channel: ${channel}`)
+  //      console.log('History from last read', conversations[channel])
 
-        if (isUnread) {// Here need to check if the message unread wait time is >= 1
-           // Need to set a timer for 25 miniutes
+        if (hasUnread) {
            console.log('unreadMessages.......')
             // if this is the first time seeing this wait 24 mins
             if (unreadWaitTime == 0) await sleep()
@@ -122,7 +125,6 @@ const getAllConversations = async () => {
         }
     }
     
-    currentDMs[channel]['ts'] = await getLastRead(channel)
     return currentDMs
 }
 

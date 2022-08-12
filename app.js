@@ -6,52 +6,49 @@ const dotenv = require("dotenv")
 const player = require('play-sound')();
 dotenv.config()
 
+const importantUsers = [ 'U03THNFKX36' ]
+
 const server = http.createServer((req, res) => {
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/plain');
   res.end('Hola Mundo');
 });
 
-const retries = 288
-
-//const channel = 'D03T0MFNWDV'
-const getLastRead = async (channel) => {
-     const conversationsHistoriesForChannel = await axios({
-            url: `https://slack.com/api/conversations.history?channel=${channel}`,
-            json: true,
-            headers: {
-                Authorization: `Bearer ${process.env.USER_AUTH_TOKEN}`,
-                'Content-type': 'application/json'
-            }
-        })
-    
-    return conversationsHistoriesForChannel.data.messages[0].ts
-}
+const MAX_POLLS = 250
 
 const poll = async (errorHandler, interval, timeout) => {
-
+    let tries = 0
     player.play('./media/alert.m4r', (err) => {
         if (err) console.log(`Could not play sound: ${err}`);
     });
     let unreadWaitTime = 0
     const run = async () => {
+        tries++
         console.log('Polling...')
+        
+        if (tries >= MAX_POLLS) {
+            player.play('./media/error.m4r', (err) => {
+                if (err) console.log(`Could not play sound: ${err}`);
+            });
+            const newCall = await delayPromise(interval);
+            run()
+        }
 
         let start = Date.now();
         let hasUnread = false
         const conversations = await getAllConversations();
+        const unreadUsers = []
         for (const channel in conversations) {
-            hasUnread = await unreadMessages(channel) ? true : false
+            if (await unreadMessages(channel)) {
+                hasUnread = true
+                unreadUsers.push(conversations[channel].user)
+                console.log(`You have an unread message from user ${conversations[channel].user} in channel ${channel}`)
+            }
         }
         
-    
-//        console.log(`Fetched conversation history for channel: ${channel}`)
-  //      console.log('History from last read', conversations[channel])
-
         if (hasUnread) {
-           console.log('unreadMessages.......')
             // if this is the first time seeing this wait 24 mins
-            if (unreadWaitTime == 0) await sleep()
+            if (unreadWaitTime == 0 && !importantUserMessage(unreadUsers)) await sleep()
 
             player.play('./media/alert.m4r', (err) => {
                 if (err) console.log(`Could not play sound: ${err}`);
@@ -75,6 +72,10 @@ const poll = async (errorHandler, interval, timeout) => {
     }
 
     return run();
+}
+
+const importantUserMessage = (unreadUsers) => {
+    return importantUsers.filter(n => unreadUsers.indexOf(n) !== -1).length > 0
 }
 
 const delayPromise = (ms) => {
@@ -102,7 +103,8 @@ const unreadMessages = async (channel) => {
             'Content-type': 'application/json'
         }
     })
-
+  
+    console.log(`fetching unread_count for ${channel}`, res.data.channel.unread_count)
     return res.data.channel.unread_count > 0
 }
 

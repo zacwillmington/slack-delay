@@ -3,7 +3,7 @@ const hostname = '127.0.0.1';
 const axios = require('axios')
 const port = 3000;
 const dotenv = require("dotenv")
-
+const player = require('play-sound')();
 dotenv.config()
 
 const server = http.createServer((req, res) => {
@@ -15,7 +15,7 @@ const server = http.createServer((req, res) => {
 const retries = 288
 
 const channel = 'D02774FFU6P'
-const getLastRead = async () => {
+const getLastRead = async (channel) => {
      const conversationsHistoriesForChannel = await axios({
             url: `https://slack.com/api/conversations.history?channel=${channel}`,
             json: true,
@@ -25,39 +25,36 @@ const getLastRead = async () => {
             }
         })
     
-    return {
-        [channel]: conversationsHistoriesForChannel.data.messages[0].ts
-    }
+    return conversationsHistoriesForChannel.data.messages[0].ts
 }
 
 const poll = async (errorHandler, interval, timeout) => {
-    let start = Date.now();
-    const lastReadForConversations = await getLastRead()
-    
+    const conversations = await getAllConversations();
+
+    player.play('./media/alert.m4r', (err) => {
+        if (err) console.log(`Could not play sound: ${err}`);
+    });
+
     const run = async () => {
-        const conversations = await getAllConversations();
         console.log('Polling...')
+        let start = Date.now();
 
-        const conversationsHistoriesForChannel = await axios({
-            url: `https://slack.com/api/conversations.history?channel=${channel}`,
-            json: true,
-            headers: {
-                Authorization: `Bearer ${process.env.USER_AUTH_TOKEN}`,
-                'Content-type': 'application/json'
-            }
-        })
-        
+        const lastReadTime = await getLastRead(channel)
         console.log(`Fetched conversation history for channel: ${channel}`)
-       const lastReadTime = conversations[channel]['ts'] = conversationsHistoriesForChannel.data.messages[0].ts;
 
-        console.log(conversationsHistoriesForChannel.data.messages[0])
+        console.log('History from last read', conversations[channel])
+        console.log('Last read message time', lastReadTime)
         // If there is a new conversation then there must be a new message 
         // Or if there is a new message from a current conversation
-        if (!(channel in lastReadForConversations) || lastReadTime !== lastReadForConversations[channel]) {
-            // Make alert saying that new message.
-            // if the message is unread
-            // repoll
-            console.log(`Last read time of conversation: ${lastReadTime}, previous read time ${lastReadForConversations[channel]}`)
+        if (!(channel in conversations) || lastReadTime !== conversations[channel].ts) {
+            
+            player.play('./media/alert.m4r', (err) => {
+                if (err) console.log(`Could not play sound: ${err}`);
+            });
+
+            console.log(`Last read time of conversation: ${lastReadTime}, previous read time ${conversations[channel].ts}`)
+            const newCall = await delayPromise(interval);
+            run()
         } else if (timeout !== 0 && Date.now() - start > timeout) {
             // Error should be thrown and alerted
            throw new Error('Call to Slack timedout') 
@@ -112,7 +109,8 @@ const getAllConversations = async () => {
            currentDMs[channel.id] = channel 
         }
     }
-
+    
+    currentDMs[channel]['ts'] = await getLastRead(channel)
     return currentDMs
 }
 
